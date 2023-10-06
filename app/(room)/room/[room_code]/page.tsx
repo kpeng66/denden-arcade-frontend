@@ -36,12 +36,16 @@ const RoomLobby: React.FC = () => {
         wsConnection.onmessage = (event) => {
             console.log("ws message sent")
             const message = JSON.parse(event.data);
-            if (message.type === 'user_update') {
-                setUsers(message.users);
-            }
-            if (message.type === 'room_closed') {
-                alert(message.message);
-                router.push('/');
+            switch (message.type) {
+                case 'game.redirect':
+                    router.push(`/game/mathgame`);  // Navigate to minigame page
+                    break;
+                case 'user_update':
+                    setUsers(message.users);
+                    break;
+                case 'room_closed': 
+                    alert(message.message);
+                    router.push('/');
             }
         };
 
@@ -81,6 +85,12 @@ const RoomLobby: React.FC = () => {
             console.error('Error leaving room: try');
         }
     };
+
+    const startGame = async () => {
+        if (ws) {
+            ws.send(JSON.stringify({'type': 'game.redirect', room_code: room_code}))
+        }
+    }
     
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-200">
@@ -94,7 +104,10 @@ const RoomLobby: React.FC = () => {
                         ))}
                     </ul>
                 </div>
-                <button className="mt-6 w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition ease-in-out duration-200 transform hover:scale-105">Start Game</button>
+                <button className="mt-6 w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition ease-in-out duration-200 transform hover:scale-105"
+                    onClick={startGame}>
+                    Start Game
+                    </button>
                 <button className="mt-4 w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition ease-in-out duration-200 transform hover:scale-105"
                     onClick={leaveRoom}>Leave Room</button>
             </div>
