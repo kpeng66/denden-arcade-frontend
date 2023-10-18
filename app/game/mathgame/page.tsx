@@ -7,7 +7,6 @@ import { useParams } from 'next/navigation';
 const MathGame: React.FC = () => {
     const [equation, setEquation] = useState('');
     const [userAnswer, setUserAnswer] = useState('');
-    const [feedback, setFeedback] = useState('');
     const [countdown, setCountdown] = useState(60);
     const [preGameCountdown, setPreGameCountdown] = useState<number | null>(3);
     const [score, setScore] = useState(0);
@@ -76,21 +75,23 @@ const MathGame: React.FC = () => {
     };
 
     const handleAnswer = async () => {
-        // Placeholder for sending answer to backend for validation
-        const response = await axios.post('http://127.0.0.1:8000/api/check-answer', { answer: userAnswer });
-        if (response.data.correct) {
-             setFeedback('Correct!');
-             setScore(prevScore => prevScore + 1);
-             fetchNewEquation();
-         } else {
-             setFeedback('Incorrect');
-             setScore(prevScore => prevScore - 1);
-             fetchNewEquation();
-         }
-
-        setUserAnswer(''); // Reset the answer field
+        try {
+            const response = await axios.post("http://127.0.0.1:8000/api/check-answer", {
+                original_equation: equation,
+                user_answer: userAnswer
+            });
+            if (response.data.result === 'correct') {
+                setScore(prevScore => prevScore + 1);
+                fetchNewEquation();
+            } else {
+                setScore(prevScore => prevScore - 1);
+                fetchNewEquation();
+            }
+        } catch (error) {
+            console.error('Error checking answer: ', error);
+        }
     };
-
+    
     return (
         <div>
             <h2>Solve the Math Problem</h2>
@@ -111,7 +112,6 @@ const MathGame: React.FC = () => {
                 placeholder="Your answer"
             />
             <button onClick={handleAnswer}>Submit</button>
-            {feedback && <div>{feedback}</div>}
             
             </div>
       )}
