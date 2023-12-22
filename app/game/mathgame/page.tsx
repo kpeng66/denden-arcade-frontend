@@ -3,18 +3,29 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams } from 'next/navigation';
+import styles from '../../../styles/sum.module.css';
+import Scoreboard from '@/components/scoreboard';
+import { Player } from '@/types/types';
+
+
+// Math Sum Game Component
 
 const MathGame: React.FC = () => {
-    const [equation, setEquation] = useState('');
-    const [userAnswer, setUserAnswer] = useState('');
-    const [countdown, setCountdown] = useState(60);
-    const [preGameCountdown, setPreGameCountdown] = useState<number | null>(3);
-    const [score, setScore] = useState(0);
-    const [ws, setWs] = useState<WebSocket | null>(null);
-
     const params = useParams();
     const room_code = params.room_code;
 
+    const [equation, setEquation] = useState('');
+    const [countdown, setCountdown] = useState(5);
+    const [preGameCountdown, setPreGameCountdown] = useState<number | null>(3);
+    const [score, setScore] = useState(0);
+    const [inputValue, setInputValue] = useState('');
+
+    const [gameOver, setGameOver] = useState<boolean>(false);
+    const [players, setPlayers] = useState<Player[]>([]);
+
+    const [ws, setWs] = useState<WebSocket | null>(null);
+
+    // useEffect for ws connection
     useEffect(() => {
         const wsConnection = new WebSocket(`ws://127.0.0.1:8000/ws/mathgame/${room_code}`);
         setWs(wsConnection);
@@ -30,6 +41,9 @@ const MathGame: React.FC = () => {
                     fetchNewEquation();
                     // ... (start game logic)
                     break;
+                case 'game.scores':
+                  // ... {scoreboard logic}
+                  break;
                 // ... (other cases)
             }
         };
@@ -37,44 +51,67 @@ const MathGame: React.FC = () => {
         return () => wsConnection.close();
     }, []);
 
+    // useEffect for game logic
     useEffect(() => {
+        let timerId: NodeJS.Timeout;
+
+        // Pre-game countdown logic
         if (preGameCountdown !== null && preGameCountdown > 0) {
-            const timerId = setTimeout(() => {
+            timerId = setTimeout(() => {
                 setPreGameCountdown((prev) => (prev !== null && prev > 0 ? prev - 1 : null));
             }, 1000);
             return () => clearTimeout(timerId);
         }
         else if (preGameCountdown === 0) {
-            // Move game start logic here
             fetchNewEquation();
             setPreGameCountdown(null); // Setting to null after the game has started
         }
-    }, [preGameCountdown]);
-    
-    useEffect(() => {
-        let gameTimerId: NodeJS.Timeout;
-        if (preGameCountdown === null) { 
-            gameTimerId = setInterval(() => {
+
+        // Game countdown logic
+        if (preGameCountdown === null && countdown > 0) { 
+            timerId = setInterval(() => {
                 setCountdown((prev) => prev - 1);
             }, 1000);
         }
-        return () => clearInterval(gameTimerId);  // Cleanup timer
-    }, [preGameCountdown]);
-    
-    useEffect(() => {
+
+        // Game over logic
         if (countdown === 0 && preGameCountdown === null) {
-            alert(`Game over! Your score is ${score}`);
-            // TODO: Handle what should happen when the game is over
+            setGameOver(true);
+
+            setCountdown(0);
+
         }
-    }, [countdown, preGameCountdown, score]);    
+
+        return () => clearInterval(timerId);  // Cleanup timer
+    }, [preGameCountdown, countdown, score]);  
 
     const fetchNewEquation = async () => {
         // Placeholder for fetching equation from backend
         const response = await axios.get('http://127.0.0.1:8000/api/get-new-equation');
         setEquation(response.data.equation);
+        setInputValue("");
     };
 
-    const handleAnswer = async () => {
+    const handleNumberPress = (number: number) => {
+        const newInputValue = `${inputValue}${number}`
+        setInputValue(newInputValue);
+        const correctAnswer = eval(equation).toString();
+        const answerLength = String(eval(equation)).length;
+
+        if (answerLength > 1 && newInputValue.length === 1 && newInputValue[0] !== correctAnswer[0]) {
+            setScore((prevScore) => prevScore - 1);
+            fetchNewEquation();
+            return;
+        }
+
+        if (newInputValue.length === answerLength) {
+            handleAnswer(newInputValue);
+        }
+
+    };
+
+    const handleAnswer = async (userInput?: string) => {
+        const userAnswer = userInput
         try {
             const response = await axios.post("http://127.0.0.1:8000/api/check-answer", {
                 original_equation: equation,
@@ -93,30 +130,43 @@ const MathGame: React.FC = () => {
     };
     
     return (
-        <div>
-            <h2>Solve the Math Problem</h2>
-            <h4>Score: {score}</h4>
-            
-            {preGameCountdown !== null ? (
-                <h4>Game Starts In: {preGameCountdown > 0 ? preGameCountdown : "Now"}s</h4>
-                ) : (
-                <h4>Time Left: {countdown}s</h4>
-                )}
-
-            {preGameCountdown === null && (
-            <div>
-            <span>{equation}</span>
-            <input 
-                value={userAnswer}
-                onChange={(e) => setUserAnswer(e.target.value)}
-                placeholder="Your answer"
-            />
-            <button onClick={handleAnswer}>Submit</button>
-            
-            </div>
-      )}
-    </div>
-    );
+        <div className={styles.gameContainer}>
+          {gameOver ? (
+            <Scoreboard players={players} />
+          ) : (
+            <>
+              <div className={styles.timer}>
+                <h4>
+                  {preGameCountdown !== null
+                    ? `Game Starts In: ${preGameCountdown > 0 ? preGameCountdown : "Now"}s`
+                    : `Time Left: ${countdown}s`}
+                </h4>
+              </div>
+      
+              {preGameCountdown === null && (
+                <div>
+                  <div className={styles.score}>{score}</div>
+                  <div className={styles.prompt}>Input right answer below.</div>
+                  <div className={styles.equation}>{equation}</div>
+                  <div className={styles.inputValue}>{inputValue}</div>
+                  <div className={styles.numberPad}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((number) => (
+                      <button
+                        key={number}
+                        onClick={() => handleNumberPress(number)}
+                        className={styles.numberButton}
+                      >
+                        {number}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      );
+      
 }
 
 export default MathGame;
