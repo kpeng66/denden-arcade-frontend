@@ -15,7 +15,7 @@ const MathGame: React.FC = () => {
     const room_code = params.room_code;
 
     const [equation, setEquation] = useState('');
-    const [countdown, setCountdown] = useState(5);
+    const [countdown, setCountdown] = useState(3);
     const [preGameCountdown, setPreGameCountdown] = useState<number | null>(3);
     const [score, setScore] = useState(0);
     const [inputValue, setInputValue] = useState('');
