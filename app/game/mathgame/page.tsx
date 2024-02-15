@@ -6,13 +6,14 @@ import { useParams } from 'next/navigation';
 import styles from '../../../styles/sum.module.css';
 import Scoreboard from '@/components/scoreboard';
 import { Player } from '@/types/types';
-
+import Cookies from 'js-cookie';
 
 // Math Sum Game Component
 
 const MathGame: React.FC = () => {
     const params = useParams();
     const room_code = params.room_code;
+    const authToken = Cookies.get('authToken');
 
     const [equation, setEquation] = useState('');
     const [countdown, setCountdown] = useState(3);
@@ -22,6 +23,7 @@ const MathGame: React.FC = () => {
 
     const [gameOver, setGameOver] = useState<boolean>(false);
     const [players, setPlayers] = useState<Player[]>([]);
+    const [currentGameId, setCurrentGameId] = useState(null);
 
     const [ws, setWs] = useState<WebSocket | null>(null);
 
@@ -38,6 +40,7 @@ const MathGame: React.FC = () => {
                     break;
                 case 'game.start':
                     setPreGameCountdown(null);
+                    setCurrentGameId(message.game_id);
                     fetchNewEquation();
                     // ... (start game logic)
                     break;
@@ -86,7 +89,6 @@ const MathGame: React.FC = () => {
     }, [preGameCountdown, countdown, score]);  
 
     const fetchNewEquation = async () => {
-        // Placeholder for fetching equation from backend
         const response = await axios.get('http://127.0.0.1:8000/api/get-new-equation');
         setEquation(response.data.equation);
         setInputValue("");
@@ -118,16 +120,39 @@ const MathGame: React.FC = () => {
                 user_answer: userAnswer
             });
             if (response.data.result === 'correct') {
-                setScore(prevScore => prevScore + 1);
+                setScore(prevScore => {
+                  const newScore = prevScore + 1;
+                  updatePlayerScore(newScore);
+                  return newScore
+                });
                 fetchNewEquation();
             } else {
-                setScore(prevScore => prevScore - 1);
+                setScore(prevScore => {
+                  const newScore = prevScore - 1;
+                  updatePlayerScore(newScore);
+                  return newScore
+                });
                 fetchNewEquation();
             }
         } catch (error) {
             console.error('Error checking answer: ', error);
         }
     };
+
+    const updatePlayerScore = async (score: number) => {
+      try {
+        const response = await axios.post(`http://127.0.0.1:8000/api/update-player-score/${currentGameId}`, { score }, {
+          headers: { 'Authorization': `Bearer ${authToken}`}
+        });
+
+        if (response.data) {
+          console.log('Score updated:', response.data)
+        }
+
+      } catch (error) {
+        console.error('Error updating score:', error)
+      }
+    }
     
     return (
         <div className={styles.gameContainer}>
