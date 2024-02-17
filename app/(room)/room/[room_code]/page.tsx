@@ -59,10 +59,11 @@ const RoomLobby: React.FC = () => {
     const startGame = async () => {
         if (currentUserIsHost) {
             try {
-                const response = await axios.post(`http://127.0.0.1:8000/api/start-math-game/${room_code}`, {}, {
-                    headers: {'Authorization': `Bearer ${authToken}`}
-                });
-
+                const response = await axios.post('http://127.0.0.1:8000/api/start-math-game', {room_code: room_code}, { 
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                }
+            });
                 if (response.data && response.data.game_id) {
                     console.log('Game started with ID: ', response.data.game_id);
                     if (ws) {
